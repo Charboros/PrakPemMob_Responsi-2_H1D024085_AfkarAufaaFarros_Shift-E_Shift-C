@@ -16,6 +16,7 @@ class DailyForecastTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final condition = WeatherConditionHelper.getCondition(forecast.weatherCode);
+    final textTheme = Theme.of(context).textTheme;
     final dayFormat = DateFormat('EEEE', 'id_ID');
     final dateFormat = DateFormat('d MMM', 'id_ID');
 
@@ -57,7 +58,9 @@ class DailyForecastTile extends StatelessWidget {
               children: [
                 Text(
                   dayName,
-                  style: TextStyle(
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodyLarge?.copyWith(
                     fontSize: 14,
                     fontWeight: isToday ? FontWeight.bold : FontWeight.w600,
                     color: isToday ? Theme.of(context).colorScheme.primary : null,
@@ -65,8 +68,7 @@ class DailyForecastTile extends StatelessWidget {
                 ),
                 Text(
                   dateStr,
-                  style: TextStyle(
-                    fontSize: 12,
+                  style: textTheme.labelMedium?.copyWith(
                     color: Colors.grey.shade600,
                   ),
                 ),
@@ -76,22 +78,20 @@ class DailyForecastTile extends StatelessWidget {
 
           // Icon dan Kondisi Cuaca
           Expanded(
-            flex: 3,
+            flex: 4,
             child: Row(
               children: [
                 Icon(
                   condition.icon,
-                  size: 26,
+                  size: 24,
                   color: condition.gradientColors.first,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     condition.description,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
+                    style: textTheme.labelMedium,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -99,34 +99,32 @@ class DailyForecastTile extends StatelessWidget {
             ),
           ),
 
-          // Peluang Hujan (jika > 0)
-          if (forecast.precipitationProbabilityMax > 0) ...[
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  Icons.water_drop,
-                  size: 14,
+          // Peluang Hujan Maksimum Harian
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.water_drop,
+                size: 14,
+                color: Colors.lightBlue,
+              ),
+              const SizedBox(width: 2),
+              Text(
+                '${forecast.precipitationProbabilityMax}%',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
                   color: Colors.lightBlue,
                 ),
-                const SizedBox(width: 2),
-                Text(
-                  '${forecast.precipitationProbabilityMax}%',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.lightBlue,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(width: 8),
-          ],
+              ),
+            ],
+          ),
+          const SizedBox(width: 10),
 
           // Suhu Min - Max
           Text(
             '${forecast.temperatureMin.toStringAsFixed(0)}° / ${forecast.temperatureMax.toStringAsFixed(0)}°',
-            style: const TextStyle(
+            style: textTheme.bodyLarge?.copyWith(
               fontSize: 14,
               fontWeight: FontWeight.bold,
             ),

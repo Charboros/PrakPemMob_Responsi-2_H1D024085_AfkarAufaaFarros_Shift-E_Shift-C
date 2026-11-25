@@ -18,8 +18,10 @@ class WeatherDetailCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(16),
@@ -39,28 +41,30 @@ class WeatherDetailCard extends StatelessWidget {
             child: Icon(
               icon,
               color: iconColor ?? Colors.white,
-              size: 22,
+              size: 20,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.labelMedium?.copyWith(
                     color: Colors.white.withValues(alpha: 0.85),
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 16,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
@@ -69,9 +73,11 @@ class WeatherDetailCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle!,
-                    style: TextStyle(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodyMedium?.copyWith(
                       fontSize: 11,
-                      color: Colors.white.withValues(alpha: 0.7),
+                      color: Colors.white.withValues(alpha: 0.75),
                     ),
                   ),
                 ],

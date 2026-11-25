@@ -1,19 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:provider/provider.dart';
+import 'routes/app_routes.dart';
 import 'services/storage_service.dart';
 import 'services/weather_api_service.dart';
+import 'utils/app_theme.dart';
 import 'viewmodels/search_viewmodel.dart';
 import 'viewmodels/weather_viewmodel.dart';
-import 'views/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Inisialisasi Storage Hive
+  // Inisialisasi format tanggal Bahasa Indonesia (intl)
+  await initializeDateFormatting('id_ID', null);
+
+  // Inisialisasi Local Storage Hive
   final storageService = StorageService();
   await storageService.init();
 
-  // Inisialisasi API Service
+  // Inisialisasi REST API Service (Open-Meteo)
   final apiService = WeatherApiService();
 
   runApp(
@@ -38,11 +43,11 @@ class AplikasiCuacaApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        // Provider Service
+        // Dependency Injection Services
         Provider<StorageService>.value(value: storageService),
         Provider<WeatherApiService>.value(value: apiService),
 
-        // ChangeNotifierProvider ViewModels (MVVM)
+        // ViewModels untuk arsitektur MVVM
         ChangeNotifierProvider<WeatherViewModel>(
           create: (_) => WeatherViewModel(
             apiService: apiService,
@@ -59,28 +64,9 @@ class AplikasiCuacaApp extends StatelessWidget {
       child: MaterialApp(
         title: 'Aplikasi Cuaca',
         debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          useMaterial3: true,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF1E88E5),
-            brightness: Brightness.light,
-          ),
-          cardTheme: const CardThemeData(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(16)),
-            ),
-          ),
-          appBarTheme: const AppBarTheme(
-            centerTitle: true,
-            titleTextStyle: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-        ),
-        home: const HomeScreen(),
+        theme: AppTheme.lightTheme,
+        initialRoute: AppRoutes.home,
+        routes: AppRoutes.routes,
       ),
     );
   }

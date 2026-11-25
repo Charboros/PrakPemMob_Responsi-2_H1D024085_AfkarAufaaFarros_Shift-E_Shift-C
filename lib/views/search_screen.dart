@@ -45,48 +45,53 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
         title: const Text('Cari Lokasi'),
         elevation: 0,
       ),
-      body: Column(
-        children: [
-          // Input Kolom Pencarian
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: TextField(
-              controller: _searchController,
-              autofocus: false,
-              decoration: InputDecoration(
-                hintText: 'Ketik nama kota (contoh: Bandung, Purwokerto)',
-                prefixIcon: const Icon(Icons.search_rounded),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear_rounded),
-                        onPressed: () {
-                          _searchController.clear();
-                          searchVM.clearSearch();
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide.none,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Column(
+            children: [
+              // Input Kolom Pencarian
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: TextField(
+                  controller: _searchController,
+                  autofocus: false,
+                  decoration: InputDecoration(
+                    hintText: 'Ketik nama kota (contoh: Bandung, Purwokerto)',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    suffixIcon: searchVM.currentQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear_rounded),
+                            onPressed: () {
+                              _searchController.clear();
+                              searchVM.clearSearch();
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                  onChanged: (value) {
+                    searchVM.onQueryChanged(value);
+                  },
+                  onSubmitted: (value) {
+                    searchVM.executeSearch(value);
+                  },
                 ),
               ),
-              onChanged: (value) {
-                searchVM.onQueryChanged(value);
-              },
-              onSubmitted: (value) {
-                searchVM.executeSearch(value);
-              },
-            ),
-          ),
 
-          // Body Content: Jika sedang cari, tampilkan hasil. Jika tidak, tampilkan Tabs Favorit & Riwayat.
-          Expanded(
-            child: _buildMainContent(searchVM),
+              // Body Content: Jika sedang cari, tampilkan hasil. Jika tidak, tampilkan Tabs Favorit & Riwayat.
+              Expanded(
+                child: _buildMainContent(searchVM),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

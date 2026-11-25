@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/location_model.dart';
+import '../routes/app_routes.dart';
 import '../utils/weather_condition_helper.dart';
 import '../viewmodels/weather_viewmodel.dart';
 import '../widgets/daily_forecast_tile.dart';
 import '../widgets/weather_detail_card.dart';
-import 'search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -24,14 +24,20 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _navigateToSearch() async {
-    final selectedLocation = await Navigator.push<LocationModel>(
+  Future<void> _navigateToSearch() async {
+    final selectedLocation = await Navigator.pushNamed(
       context,
-      MaterialPageRoute(builder: (context) => const SearchScreen()),
+      AppRoutes.search,
     );
 
-    if (selectedLocation != null && mounted) {
-      context.read<WeatherViewModel>().selectLocation(selectedLocation);
+    if (!mounted) return;
+    final weatherVM = context.read<WeatherViewModel>();
+
+    if (selectedLocation is LocationModel) {
+      await weatherVM.selectLocation(selectedLocation);
+    } else {
+      // Sinkronkan status favorit jika diubah dari halaman pencarian
+      weatherVM.syncFavoriteStatus();
     }
   }
 
@@ -54,16 +60,21 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         child: SafeArea(
-          child: Column(
-            children: [
-              // Custom App Bar
-              _buildAppBar(context, weatherVM, location),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: Column(
+                children: [
+                  // Custom App Bar
+                  _buildAppBar(context, weatherVM, location),
 
-              // Content Body
-              Expanded(
-                child: _buildBody(weatherVM, condition),
+                  // Content Body
+                  Expanded(
+                    child: _buildBody(context, weatherVM, condition),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -75,11 +86,12 @@ class _HomeScreenState extends State<HomeScreen> {
     WeatherViewModel weatherVM,
     LocationModel? location,
   ) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: Row(
         children: [
-          // Icon Lokasi & Nama Kota
           const Icon(
             Icons.location_on_rounded,
             color: Colors.white,
@@ -93,9 +105,8 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Text(
                   location?.name ?? 'Memuat Lokasi...',
-                  style: const TextStyle(
+                  style: textTheme.titleLarge?.copyWith(
                     fontSize: 20,
-                    fontWeight: FontWeight.bold,
                     color: Colors.white,
                   ),
                   overflow: TextOverflow.ellipsis,
@@ -103,8 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (location != null && location.subtitleInfo.isNotEmpty)
                   Text(
                     location.subtitleInfo,
-                    style: TextStyle(
-                      fontSize: 12,
+                    style: textTheme.labelMedium?.copyWith(
                       color: Colors.white.withValues(alpha: 0.85),
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -117,23 +127,29 @@ class _HomeScreenState extends State<HomeScreen> {
           if (location != null)
             IconButton(
               icon: Icon(
-                weatherVM.isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                weatherVM.isFavorite
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
                 color: weatherVM.isFavorite ? Colors.redAccent : Colors.white,
                 size: 26,
               ),
-              tooltip: weatherVM.isFavorite ? 'Hapus dari Favorit' : 'Simpan ke Favorit',
-              onPressed: () {
-                weatherVM.toggleFavorite();
-                final msg = weatherVM.isFavorite
+              tooltip: weatherVM.isFavorite
+                  ? 'Hapus dari Favorit'
+                  : 'Simpan ke Favorit',
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                final isNowFav = await weatherVM.toggleFavorite();
+                final msg = isNowFav
                     ? '${location.name} ditambahkan ke favorit'
                     : '${location.name} dihapus dari favorit';
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(msg),
-                    duration: const Duration(seconds: 2),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+                messenger
+                  ..hideCurrentSnackBar()
+                  ..showSnackBar(
+                    SnackBar(
+                      content: Text(msg),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
               },
             ),
 
@@ -152,23 +168,31 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildBody(WeatherViewModel weatherVM, WeatherConditionInfo condition) {
+  Widget _buildBody(
+    BuildContext context,
+    WeatherViewModel weatherVM,
+    WeatherConditionInfo condition,
+  ) {
+    final textTheme = Theme.of(context).textTheme;
+
+    // 1. Kondisi Loading
     if (weatherVM.isLoading && weatherVM.weatherData == null) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(color: Colors.white),
-            SizedBox(height: 16),
+            const CircularProgressIndicator(color: Colors.white),
+            const SizedBox(height: 16),
             Text(
               'Mengambil data cuaca...',
-              style: TextStyle(color: Colors.white, fontSize: 16),
+              style: textTheme.titleMedium?.copyWith(color: Colors.white),
             ),
           ],
         ),
       );
     }
 
+    // 2. Kondisi Error
     if (weatherVM.state == WeatherViewState.error && weatherVM.weatherData == null) {
       return Center(
         child: Padding(
@@ -182,19 +206,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 color: Colors.white70,
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Gagal Memuat Cuaca',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+                style: textTheme.headlineSmall?.copyWith(color: Colors.white),
               ),
               const SizedBox(height: 8),
               Text(
                 weatherVM.errorMessage ?? 'Terjadi kesalahan pada jaringan.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70, fontSize: 14),
+                style: textTheme.bodyLarge?.copyWith(color: Colors.white70),
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
@@ -202,10 +222,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: Colors.blueGrey.shade900,
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
                 ),
                 icon: const Icon(Icons.refresh_rounded),
                 label: const Text('Coba Lagi'),
@@ -216,8 +232,51 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    // 3. Kondisi Data Kosong
+    if (weatherVM.state == WeatherViewState.empty || weatherVM.weatherData == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(
+                Icons.location_searching_rounded,
+                size: 64,
+                color: Colors.white70,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Data Cuaca Kosong',
+                style: textTheme.headlineSmall?.copyWith(color: Colors.white),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Silakan cari dan pilih kota untuk menampilkan informasi cuaca.',
+                textAlign: TextAlign.center,
+                style: textTheme.bodyLarge?.copyWith(color: Colors.white70),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: _navigateToSearch,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.blueGrey.shade900,
+                ),
+                icon: const Icon(Icons.search_rounded),
+                label: const Text('Cari Kota'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final weather = weatherVM.weatherData!.current;
     final dailyList = weatherVM.weatherData!.daily;
+    final todayRainProb = dailyList.isNotEmpty
+        ? dailyList.first.precipitationProbabilityMax
+        : null;
 
     return RefreshIndicator(
       color: Theme.of(context).colorScheme.primary,
@@ -227,8 +286,32 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.all(16.0),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
+          // Banner peringatan jika refresh gagal namun masih ada data sebelumnya
+          if (weatherVM.state == WeatherViewState.error &&
+              weatherVM.errorMessage != null)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.redAccent.withValues(alpha: 0.85),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      weatherVM.errorMessage!,
+                      style: textTheme.bodyMedium?.copyWith(color: Colors.white),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Header Hero Cuaca Utama
-          _buildWeatherHero(weather, condition),
+          _buildWeatherHero(context, weather.temperature, condition),
 
           const SizedBox(height: 16),
 
@@ -253,9 +336,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: Text(
                     condition.advice,
-                    style: const TextStyle(
+                    style: textTheme.bodyMedium?.copyWith(
                       color: Colors.white,
-                      fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -264,51 +346,56 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          const SizedBox(height: 18),
+          const SizedBox(height: 20),
 
-          // Grid Info Tambahan Cuaca
-          const Text(
+          // Grid Responsif Info Tambahan Cuaca
+          Text(
             'Informasi Cuaca',
-            style: TextStyle(
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+            style: textTheme.titleLarge?.copyWith(color: Colors.white),
           ),
           const SizedBox(height: 12),
-          GridView.count(
-            crossAxisCount: 2,
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            crossAxisSpacing: 10,
-            mainAxisSpacing: 10,
-            childAspectRatio: 1.8,
-            children: [
-              WeatherDetailCard(
-                icon: Icons.thermostat_rounded,
-                title: 'Terasa Seperti',
-                value: '${weather.apparentTemperature.toStringAsFixed(1)}°C',
-                subtitle: 'Suhu dirasakan',
-              ),
-              WeatherDetailCard(
-                icon: Icons.water_drop_rounded,
-                title: 'Kelembapan Udara',
-                value: '${weather.relativeHumidity}%',
-                subtitle: 'Kelembapan relatif',
-              ),
-              WeatherDetailCard(
-                icon: Icons.air_rounded,
-                title: 'Kecepatan Angin',
-                value: '${weather.windSpeed.toStringAsFixed(1)} km/h',
-                subtitle: 'Angin 10m',
-              ),
-              WeatherDetailCard(
-                icon: Icons.grain_rounded,
-                title: 'Curah Hujan',
-                value: '${weather.precipitation.toStringAsFixed(1)} mm',
-                subtitle: 'Presipitasi saat ini',
-              ),
-            ],
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final crossAxisCount = constraints.maxWidth >= 560 ? 4 : 2;
+              return GridView(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: crossAxisCount,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  mainAxisExtent: 86,
+                ),
+                children: [
+                  WeatherDetailCard(
+                    icon: Icons.thermostat_rounded,
+                    title: 'Terasa Seperti',
+                    value: '${weather.apparentTemperature.toStringAsFixed(1)}°C',
+                    subtitle: 'Suhu dirasakan',
+                  ),
+                  WeatherDetailCard(
+                    icon: Icons.water_drop_rounded,
+                    title: 'Kelembapan',
+                    value: '${weather.relativeHumidity}%',
+                    subtitle: 'Kelembapan udara',
+                  ),
+                  WeatherDetailCard(
+                    icon: Icons.air_rounded,
+                    title: 'Kecepatan Angin',
+                    value: '${weather.windSpeed.toStringAsFixed(1)} km/h',
+                    subtitle: 'Angin 10m',
+                  ),
+                  WeatherDetailCard(
+                    icon: Icons.umbrella_rounded,
+                    title: 'Curah & Peluang Hujan',
+                    value: '${weather.precipitation.toStringAsFixed(1)} mm',
+                    subtitle: todayRainProb != null
+                        ? 'Peluang hujan: $todayRainProb%'
+                        : 'Presipitasi saat ini',
+                  ),
+                ],
+              );
+            },
           ),
 
           const SizedBox(height: 24),
@@ -317,35 +404,41 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Perkiraan 7 Hari ke Depan',
-                style: TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
+              Text(
+                'Perkiraan ${dailyList.length} Hari ke Depan',
+                style: textTheme.titleLarge?.copyWith(color: Colors.white),
               ),
               Text(
                 'Min / Max',
-                style: TextStyle(
-                  fontSize: 13,
+                style: textTheme.bodyMedium?.copyWith(
                   fontWeight: FontWeight.w500,
-                  color: Colors.white.withValues(alpha: 0.8),
+                  color: Colors.white.withValues(alpha: 0.85),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
 
-          // List Ramalan Cuaca
-          ...dailyList.asMap().entries.map((entry) {
-            final index = entry.key;
-            final forecast = entry.value;
-            return DailyForecastTile(
-              forecast: forecast,
-              isToday: index == 0,
-            );
-          }),
+          if (dailyList.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                'Data perkiraan cuaca harian tidak tersedia.',
+                textAlign: TextAlign.center,
+                style: textTheme.bodyMedium?.copyWith(color: Colors.white),
+              ),
+            )
+          else
+            ...dailyList.asMap().entries.map((entry) {
+              return DailyForecastTile(
+                forecast: entry.value,
+                isToday: entry.key == 0,
+              );
+            }),
 
           const SizedBox(height: 16),
         ],
@@ -353,39 +446,31 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildWeatherHero(dynamic weather, WeatherConditionInfo condition) {
+  Widget _buildWeatherHero(
+    BuildContext context,
+    double temperature,
+    WeatherConditionInfo condition,
+  ) {
+    final textTheme = Theme.of(context).textTheme;
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 24.0, horizontal: 16.0),
+      padding: const EdgeInsets.symmetric(vertical: 20.0, horizontal: 16.0),
       child: Column(
         children: [
-          // Icon Cuaca Utama
           Icon(
             condition.icon,
-            size: 88,
+            size: 84,
             color: Colors.white,
           ),
           const SizedBox(height: 8),
-
-          // Suhu Besar
           Text(
-            '${weather.temperature.toStringAsFixed(0)}°',
-            style: const TextStyle(
-              fontSize: 72,
-              fontWeight: FontWeight.w200,
-              color: Colors.white,
-              height: 1.1,
-            ),
+            '${temperature.toStringAsFixed(0)}°C',
+            style: textTheme.displayLarge?.copyWith(color: Colors.white),
           ),
-
-          // Deskripsi Cuaca
+          const SizedBox(height: 4),
           Text(
             condition.description,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w600,
-              color: Colors.white,
-              letterSpacing: 0.5,
-            ),
+            style: textTheme.headlineSmall?.copyWith(color: Colors.white),
           ),
         ],
       ),

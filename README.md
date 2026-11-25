@@ -66,26 +66,29 @@ Aplikasi dibangun dengan pola arsitektur **Model-View-ViewModel (MVVM)** untuk m
 
 ```
 lib/
-├── main.dart                       # Entry point aplikasi & inisialisasi Provider + Hive
-├── models/                         # [MODEL] Representasi struktur data aplikasi
-│   ├── location_model.dart         # Model lokasi kota, koordinat, dan serialisasi Hive/JSON
-│   ├── weather_model.dart          # Model data cuaca terkini
-│   ├── daily_forecast_model.dart   # Model ramalan cuaca harian (7 hari)
-│   └── weather_response_model.dart # Wrapper respon gabungan cuaca Open-Meteo
-├── services/                       # [SERVICE / REPOSITORY] Akses ke sumber data eksternal & lokal
-│   ├── weather_api_service.dart    # Komunikasi REST API (HTTP GET) Open-Meteo
-│   └── storage_service.dart        # Database lokal Hive (Favorit, Riwayat, Lokasi Terakhir)
-├── viewmodels/                     # [VIEWMODEL] Logika bisnis & manajemen state
-│   ├── weather_viewmodel.dart      # State cuaca aktif, lokasi terpilih, refresh & favorit
-│   └── search_viewmodel.dart       # State pencarian kota, tab favorit, dan riwayat pencarian
-├── views/                          # [VIEW] Tampilan layar pengguna
-│   ├── home_screen.dart            # Halaman utama informasi cuaca & ramalan harian
-│   └── search_screen.dart          # Halaman pencarian kota, daftar favorit & riwayat
-├── widgets/                        # Komponen UI modular
-│   ├── daily_forecast_tile.dart    # Kartu baris ramalan cuaca harian
-│   ├── location_list_tile.dart     # Kartu baris lokasi kota pada pencarian & riwayat
-│   └── weather_detail_card.dart    # Kartu metrik parameter cuaca (kelembapan, angin, dll.)
-└── utils/                          # Helper dan utilitas
+├── main.dart                         # Entry point aplikasi, inisialisasi Hive, Locale & Provider
+├── models/                           # [MODEL] Representasi struktur data aplikasi
+│   ├── location_model.dart           # Model lokasi kota, koordinat, dan serialisasi Hive/JSON
+│   ├── weather_model.dart            # Model data cuaca terkini
+│   ├── daily_forecast_model.dart     # Model ramalan cuaca harian (7 hari)
+│   └── weather_response_model.dart   # Wrapper respon gabungan cuaca Open-Meteo
+├── routes/                           # Manajemen navigasi antar screen
+│   └── app_routes.dart               # Definisi named routes ('/' dan '/search')
+├── services/                         # [SERVICE] Akses ke sumber data eksternal & lokal
+│   ├── weather_api_service.dart      # Komunikasi REST API (HTTP GET) Open-Meteo
+│   └── storage_service.dart          # Database lokal Hive (Favorit, Riwayat, Lokasi Terakhir)
+├── viewmodels/                       # [VIEWMODEL] Logika bisnis & manajemen state (ChangeNotifier)
+│   ├── weather_viewmodel.dart        # State cuaca aktif, lokasi terpilih, refresh & favorit
+│   └── search_viewmodel.dart         # State pencarian kota, tab favorit, dan riwayat pencarian
+├── views/                            # [VIEW] Tampilan layar pengguna
+│   ├── home_screen.dart              # Halaman utama informasi cuaca & ramalan harian
+│   └── search_screen.dart            # Halaman pencarian kota, daftar favorit & riwayat
+├── widgets/                          # Komponen UI modular
+│   ├── daily_forecast_tile.dart      # Kartu baris ramalan cuaca harian
+│   ├── location_list_tile.dart       # Kartu baris lokasi kota pada pencarian & riwayat
+│   └── weather_detail_card.dart      # Kartu metrik parameter cuaca (kelembapan, angin, dll.)
+└── utils/                            # Konfigurasi tema dan utilitas
+    ├── app_theme.dart                # Konfigurasi Theme & Typography Material Design 3
     └── weather_condition_helper.dart # Pemetaan WMO Weather Code ke deskripsi, ikon & gradien
 ```
 

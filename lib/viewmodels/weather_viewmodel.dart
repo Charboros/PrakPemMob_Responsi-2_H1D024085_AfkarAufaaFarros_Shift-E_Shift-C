@@ -4,7 +4,7 @@ import '../models/weather_response_model.dart';
 import '../services/storage_service.dart';
 import '../services/weather_api_service.dart';
 
-enum WeatherViewState { initial, loading, loaded, error }
+enum WeatherViewState { initial, loading, loaded, empty, error }
 
 class WeatherViewModel extends ChangeNotifier {
   final WeatherApiService apiService;
@@ -50,8 +50,13 @@ class WeatherViewModel extends ChangeNotifier {
 
   /// Memilih lokasi baru dan langsung mengambil data cuacanya
   Future<void> selectLocation(LocationModel location, {bool isInitial = false}) async {
+    final isDifferentCity = _currentLocation?.id != location.id;
     _currentLocation = location;
     _isFavorite = storageService.isFavorite(location.id);
+
+    if (isDifferentCity) {
+      _weatherData = null;
+    }
 
     // Simpan ke riwayat dan simpan sebagai lokasi aktif terakhir di Hive
     await storageService.addToSearchHistory(location);
@@ -62,8 +67,16 @@ class WeatherViewModel extends ChangeNotifier {
   }
 
   /// Mengambil data cuaca terkini dan forecast dari Open-Meteo REST API
-  Future<void> fetchWeather() async {
-    if (_currentLocation == null) return;
+  Future<void> fetchWeather({bool clearOldData = false}) async {
+    if (_currentLocation == null) {
+      _state = WeatherViewState.empty;
+      notifyListeners();
+      return;
+    }
+
+    if (clearOldData) {
+      _weatherData = null;
+    }
 
     _state = WeatherViewState.loading;
     _errorMessage = null;
@@ -76,7 +89,9 @@ class WeatherViewModel extends ChangeNotifier {
       );
 
       _weatherData = data;
-      _state = WeatherViewState.loaded;
+      _state = data.daily.isEmpty && data.timezone.isEmpty
+          ? WeatherViewState.empty
+          : WeatherViewState.loaded;
       _errorMessage = null;
     } on ApiException catch (e) {
       _errorMessage = e.message;
@@ -85,22 +100,31 @@ class WeatherViewModel extends ChangeNotifier {
       _errorMessage = 'Gagal memuat cuaca: $e';
       _state = WeatherViewState.error;
     } finally {
-      // Perbarui kembali status favorit terbaru
-      if (_currentLocation != null) {
-        _isFavorite = storageService.isFavorite(_currentLocation!.id);
-      }
+      syncFavoriteStatus(notify: false);
       notifyListeners();
     }
   }
 
-  /// Toggle status favorit untuk lokasi yang saat ini aktif
-  Future<void> toggleFavorite() async {
+  /// Sinkronkan status favorit lokasi aktif dengan Hive
+  void syncFavoriteStatus({bool notify = true}) {
     if (_currentLocation == null) return;
+    final latest = storageService.isFavorite(_currentLocation!.id);
+    if (_isFavorite != latest) {
+      _isFavorite = latest;
+      _currentLocation = _currentLocation!.copyWith(isFavorite: latest);
+      if (notify) notifyListeners();
+    }
+  }
+
+  /// Toggle status favorit untuk lokasi yang saat ini aktif
+  Future<bool> toggleFavorite() async {
+    if (_currentLocation == null) return false;
 
     final newStatus = await storageService.toggleFavorite(_currentLocation!);
     _isFavorite = newStatus;
     _currentLocation = _currentLocation!.copyWith(isFavorite: newStatus);
     notifyListeners();
+    return newStatus;
   }
 
   /// Refresh data cuaca saat user melakukan pull-to-refresh

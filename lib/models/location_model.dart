@@ -50,8 +50,8 @@ class LocationModel {
     return LocationModel(
       id: json['id'] as int? ?? DateTime.now().millisecondsSinceEpoch,
       name: json['name'] as String? ?? 'Lokasi Tidak Diketahui',
-      latitude: (json['latitude'] as num).toDouble(),
-      longitude: (json['longitude'] as num).toDouble(),
+      latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,
+      longitude: (json['longitude'] as num?)?.toDouble() ?? 0.0,
       country: json['country'] as String? ?? '',
       admin1: json['admin1'] as String?,
       timezone: json['timezone'] as String?,
