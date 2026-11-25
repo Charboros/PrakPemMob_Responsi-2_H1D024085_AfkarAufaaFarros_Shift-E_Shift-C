@@ -14,11 +14,9 @@ Proyek aplikasi ramalan cuaca berbasis **Flutter** yang dikembangkan untuk memen
 
 ## 📱 Screenshots Aplikasi
 
-| Home / Weather Screen | Search Screen (Pencarian) | Lokasi Favorit & Riwayat |
+| Home / Weather Screen | Search Screen (Pencarian Kota) | Lokasi Favorit & Riwayat (Hive) |
 | :---: | :---: | :---: |
-| ![Home Screen](screenshots/home_screen.png) | ![Search Screen](screenshots/search_screen.png) | ![Favorites and History](screenshots/favorites_tab.png) |
-
-> *Catatan: File gambar screenshot dapat diletakkan di dalam folder `screenshots/` dengan nama file `home_screen.png`, `search_screen.png`, dan `favorites_tab.png`.*
+| <img src="screenshots/home_screen.png" alt="Home Screen" width="260" /> | <img src="screenshots/search_screen.png" alt="Search Screen" width="260" /> | <img src="screenshots/favorites_history.png" alt="Favorit dan Riwayat" width="260" /> |
 
 ---
 
