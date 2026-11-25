@@ -4,8 +4,17 @@ import '../models/weather_response_model.dart';
 import '../services/storage_service.dart';
 import '../services/weather_api_service.dart';
 
+/// Representasi status tampilan layar utama untuk mengatur UI secara reaktif
 enum WeatherViewState { initial, loading, loaded, empty, error }
 
+/// ============================================================================
+/// LAYER VIEWMODEL (MVVM) - WeatherViewModel
+/// ----------------------------------------------------------------------------
+/// Bertindak sebagai penghubung antara `HomeScreen` (View) dengan `WeatherApiService`
+/// dan `StorageService` (Model/Data).
+/// Menggunakan `ChangeNotifier` (Provider): setiap kali `notifyListeners()` dipanggil,
+/// `HomeScreen` akan otomatis melakukan rebuild (recomposition) sesuai data terbaru.
+/// ============================================================================
 class WeatherViewModel extends ChangeNotifier {
   final WeatherApiService apiService;
   final StorageService storageService;
@@ -21,7 +30,7 @@ class WeatherViewModel extends ChangeNotifier {
     required this.storageService,
   });
 
-  // Getters
+  // Enkapsulasi state melalui getter agar hanya bisa diubah lewat fungsi ViewModel
   WeatherViewState get state => _state;
   WeatherResponseModel? get weatherData => _weatherData;
   LocationModel? get currentLocation => _currentLocation;
@@ -30,7 +39,7 @@ class WeatherViewModel extends ChangeNotifier {
   bool get isLoading => _state == WeatherViewState.loading;
   bool get hasData => _state == WeatherViewState.loaded && _weatherData != null;
 
-  /// Default fallback lokasi (Jakarta) jika belum ada lokasi tersimpan
+  /// Lokasi awal default (Jakarta) apabila pengguna baru pertama kali menginstal aplikasi
   static LocationModel get defaultLocation => LocationModel(
         id: 1642911,
         name: 'Jakarta',
@@ -41,24 +50,27 @@ class WeatherViewModel extends ChangeNotifier {
         timezone: 'Asia/Jakarta',
       );
 
-  /// Inisialisasi awal: muat lokasi terakhir tersimpan di Hive, atau gunakan default
+  /// Dipanggil saat aplikasi pertama kali dibuka:
+  /// Mengecek apakah ada lokasi terakhir di Hive; jika belum ada, gunakan Jakarta
   Future<void> init() async {
     final savedLocation = storageService.getLastSelectedLocation();
     final locationToLoad = savedLocation ?? defaultLocation;
     await selectLocation(locationToLoad, isInitial: true);
   }
 
-  /// Memilih lokasi baru dan langsung mengambil data cuacanya
+  /// Mengganti kota aktif (misal setelah dipilih dari halaman pencarian),
+  /// mencatatnya ke Hive, lalu memanggil REST API cuaca untuk kota tersebut
   Future<void> selectLocation(LocationModel location, {bool isInitial = false}) async {
     final isDifferentCity = _currentLocation?.id != location.id;
     _currentLocation = location;
     _isFavorite = storageService.isFavorite(location.id);
 
+    // Reset data cuaca lama jika berpindah ke kota berbeda agar indikator loading tampil bersih
     if (isDifferentCity) {
       _weatherData = null;
     }
 
-    // Simpan ke riwayat dan simpan sebagai lokasi aktif terakhir di Hive
+    // Simpan ke riwayat pencarian dan simpan sebagai lokasi terakhir di Hive
     await storageService.addToSearchHistory(location);
     await storageService.saveLastSelectedLocation(location);
 
@@ -66,7 +78,8 @@ class WeatherViewModel extends ChangeNotifier {
     await fetchWeather();
   }
 
-  /// Mengambil data cuaca terkini dan forecast dari Open-Meteo REST API
+  /// Mengambil data cuaca terkini & ramalan 7 hari dari Open-Meteo API
+  /// sekaligus menangani transisi state: loading -> loaded / empty / error
   Future<void> fetchWeather({bool clearOldData = false}) async {
     if (_currentLocation == null) {
       _state = WeatherViewState.empty;
@@ -78,6 +91,7 @@ class WeatherViewModel extends ChangeNotifier {
       _weatherData = null;
     }
 
+    // Set state menjadi loading dan beritahu View untuk menampilkan indikator pemuatan
     _state = WeatherViewState.loading;
     _errorMessage = null;
     notifyListeners();
@@ -94,18 +108,20 @@ class WeatherViewModel extends ChangeNotifier {
           : WeatherViewState.loaded;
       _errorMessage = null;
     } on ApiException catch (e) {
+      // Menangkap pesan error yang sudah diformat dari WeatherApiService
       _errorMessage = e.message;
       _state = WeatherViewState.error;
     } catch (e) {
       _errorMessage = 'Gagal memuat cuaca: $e';
       _state = WeatherViewState.error;
     } finally {
+      // Pastikan status favorit tersinkron lalu perbarui tampilan View
       syncFavoriteStatus(notify: false);
       notifyListeners();
     }
   }
 
-  /// Sinkronkan status favorit lokasi aktif dengan Hive
+  /// Menyelaraskan status ikon favorit kota aktif jika diubah dari SearchScreen
   void syncFavoriteStatus({bool notify = true}) {
     if (_currentLocation == null) return;
     final latest = storageService.isFavorite(_currentLocation!.id);
@@ -116,7 +132,7 @@ class WeatherViewModel extends ChangeNotifier {
     }
   }
 
-  /// Toggle status favorit untuk lokasi yang saat ini aktif
+  /// Menambah / menghapus kota yang sedang dibuka ke dalam daftar favorit Hive
   Future<bool> toggleFavorite() async {
     if (_currentLocation == null) return false;
 
@@ -127,7 +143,7 @@ class WeatherViewModel extends ChangeNotifier {
     return newStatus;
   }
 
-  /// Refresh data cuaca saat user melakukan pull-to-refresh
+  /// Memuat ulang data cuaca terbaru saat pengguna menarik layar ke bawah (pull-to-refresh)
   Future<void> refresh() async {
     await fetchWeather();
   }

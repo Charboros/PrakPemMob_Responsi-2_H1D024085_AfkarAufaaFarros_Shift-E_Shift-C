@@ -1,6 +1,13 @@
 import 'weather_model.dart';
 import 'daily_forecast_model.dart';
 
+/// ============================================================================
+/// LAYER MODEL (MVVM) - WeatherResponseModel
+/// ----------------------------------------------------------------------------
+/// Model pembungkus utama (root response) dari Open-Meteo Weather Forecast API
+/// yang menyatukan informasi koordinat, zona waktu, cuaca saat ini (`current`),
+/// serta daftar ramalan cuaca beberapa hari ke depan (`daily`).
+/// ============================================================================
 class WeatherResponseModel {
   final double latitude;
   final double longitude;
@@ -16,6 +23,7 @@ class WeatherResponseModel {
     required this.daily,
   });
 
+  /// Parsing JSON lengkap dari endpoint `/v1/forecast` ke objek model Dart
   factory WeatherResponseModel.fromJson(Map<String, dynamic> json) {
     return WeatherResponseModel(
       latitude: (json['latitude'] as num?)?.toDouble() ?? 0.0,

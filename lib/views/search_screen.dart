@@ -4,6 +4,13 @@ import '../models/location_model.dart';
 import '../viewmodels/search_viewmodel.dart';
 import '../widgets/location_list_tile.dart';
 
+/// ============================================================================
+/// LAYER VIEW (MVVM) - SearchScreen (Layar Pencarian & Favorit Lokasi)
+/// ----------------------------------------------------------------------------
+/// Menggunakan `StatefulWidget` karena mengelola `TextEditingController`
+/// untuk kolom input pencarian serta `TabController` (Favorit & Riwayat)
+/// yang wajib dibersihkan lewat method `dispose()` saat halaman ditutup.
+/// ============================================================================
 class SearchScreen extends StatefulWidget {
   const SearchScreen({super.key});
 
@@ -11,14 +18,18 @@ class SearchScreen extends StatefulWidget {
   State<SearchScreen> createState() => _SearchScreenState();
 }
 
-class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderStateMixin {
+class _SearchScreenState extends State<SearchScreen>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _searchController = TextEditingController();
   late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    // Inisialisasi controller untuk 2 tab: Tab Lokasi Favorit & Tab Riwayat
     _tabController = TabController(length: 2, vsync: this);
+
+    // Memuat data favorit dan riwayat pencarian dari Hive saat halaman dibuka
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SearchViewModel>().loadFavoritesAndHistory();
     });
@@ -26,17 +37,20 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
 
   @override
   void dispose() {
+    // Membersihkan controller dari memori ketika halaman ditutup
     _searchController.dispose();
     _tabController.dispose();
     super.dispose();
   }
 
+  /// Mengirim objek kota yang dipilih kembali ke HomeScreen untuk ditampilkan cuacanya
   void _onLocationSelected(LocationModel location) {
     Navigator.pop(context, location);
   }
 
   @override
   Widget build(BuildContext context) {
+    // Mengamati perubahan state dari SearchViewModel
     final searchVM = context.watch<SearchViewModel>();
     final theme = Theme.of(context);
 
@@ -50,15 +64,17 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
           constraints: const BoxConstraints(maxWidth: 800),
           child: Column(
             children: [
-              // Input Kolom Pencarian
+              // Kolom input pencarian nama kota
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: TextField(
                   controller: _searchController,
                   autofocus: false,
                   decoration: InputDecoration(
                     hintText: 'Ketik nama kota (contoh: Bandung, Purwokerto)',
                     prefixIcon: const Icon(Icons.search_rounded),
+                    // Tombol silang (X) muncul otomatis saat ada teks di kolom pencarian
                     suffixIcon: searchVM.currentQuery.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear_rounded),
@@ -69,23 +85,27 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
                           )
                         : null,
                     filled: true,
-                    fillColor: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    fillColor: theme.colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.4),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(16),
                       borderSide: BorderSide.none,
                     ),
                   ),
+                  // Memicu pencarian otomatis dengan debounce 500ms saat mengetik
                   onChanged: (value) {
                     searchVM.onQueryChanged(value);
                   },
+                  // Memicu pencarian langsung saat menekan tombol Enter/Search di keyboard
                   onSubmitted: (value) {
                     searchVM.executeSearch(value);
                   },
                 ),
               ),
 
-              // Body Content: Jika sedang cari, tampilkan hasil. Jika tidak, tampilkan Tabs Favorit & Riwayat.
+              // Area konten dinamis: menampilkan hasil pencarian API atau Tab Favorit & Riwayat
               Expanded(
                 child: _buildMainContent(searchVM),
               ),
@@ -96,13 +116,14 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
     );
   }
 
+  /// Menentukan apakah menampilkan daftar hasil pencarian atau Tab Favorit/Riwayat
   Widget _buildMainContent(SearchViewModel searchVM) {
-    // Jika ada teks pencarian
+    // Jika pengguna sedang mengetik kata kunci, tampilkan hasil pencarian dari API
     if (searchVM.currentQuery.isNotEmpty) {
       return _buildSearchResults(searchVM);
     }
 
-    // Jika tidak sedang mencari: Tampilkan TabBar untuk Favorit & Riwayat Pencarian
+    // Jika kolom pencarian kosong, tampilkan Tab Lokasi Favorit & Riwayat dari Hive
     return Column(
       children: [
         TabBar(
@@ -135,7 +156,9 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
     );
   }
 
+  /// Menampilkan state hasil pencarian lokasi (Loading / Error / Data Kosong / Daftar Kota)
   Widget _buildSearchResults(SearchViewModel searchVM) {
+    // 1. Kondisi Loading saat request ke Geocoding API
     if (searchVM.isSearching) {
       return const Center(
         child: Column(
@@ -149,6 +172,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
       );
     }
 
+    // 2. Kondisi Error saat gagal terhubung ke API
     if (searchVM.state == SearchViewState.error) {
       return Center(
         child: Padding(
@@ -156,7 +180,8 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline_rounded, size: 54, color: Colors.redAccent),
+              const Icon(Icons.error_outline_rounded,
+                  size: 54, color: Colors.redAccent),
               const SizedBox(height: 12),
               Text(
                 searchVM.errorMessage ?? 'Gagal mencari lokasi.',
@@ -173,19 +198,23 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
       );
     }
 
-    if (searchVM.state == SearchViewState.empty || searchVM.searchResults.isEmpty) {
+    // 3. Kondisi Data Kosong jika nama kota tidak ditemukan
+    if (searchVM.state == SearchViewState.empty ||
+        searchVM.searchResults.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.location_off_rounded, size: 54, color: Colors.grey.shade400),
+              Icon(Icons.location_off_rounded,
+                  size: 54, color: Colors.grey.shade400),
               const SizedBox(height: 12),
               Text(
                 'Tidak ada lokasi ditemukan untuk "${searchVM.currentQuery}"',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               const SizedBox(height: 6),
               const Text(
@@ -199,6 +228,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
       );
     }
 
+    // 4. Kondisi Berhasil: merender daftar kota hasil pencarian API
     return ListView.builder(
       padding: const EdgeInsets.symmetric(vertical: 8),
       itemCount: searchVM.searchResults.length,
@@ -213,6 +243,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
     );
   }
 
+  /// Membangun isi Tab Lokasi Favorit yang tersimpan di Hive
   Widget _buildFavoritesTab(SearchViewModel searchVM) {
     if (searchVM.favorites.isEmpty) {
       return Center(
@@ -257,6 +288,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
     );
   }
 
+  /// Membangun isi Tab Riwayat Pencarian yang tersimpan di Hive
   Widget _buildHistoryTab(SearchViewModel searchVM) {
     if (searchVM.searchHistory.isEmpty) {
       return Center(
@@ -302,6 +334,7 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
                   color: Colors.grey.shade700,
                 ),
               ),
+              // Tombol untuk membersihkan seluruh riwayat dengan dialog konfirmasi
               TextButton.icon(
                 icon: const Icon(Icons.delete_sweep_rounded, size: 18),
                 label: const Text('Hapus Semua'),
@@ -311,7 +344,8 @@ class _SearchScreenState extends State<SearchScreen> with SingleTickerProviderSt
                     context: context,
                     builder: (ctx) => AlertDialog(
                       title: const Text('Hapus Riwayat?'),
-                      content: const Text('Semua riwayat pencarian lokasi akan dihapus.'),
+                      content: const Text(
+                          'Semua riwayat pencarian lokasi akan dihapus.'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx),

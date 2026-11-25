@@ -1,6 +1,16 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import '../models/location_model.dart';
 
+/// ============================================================================
+/// LAYER SERVICE (Local Storage) - StorageService
+/// ----------------------------------------------------------------------------
+/// Mengimplementasikan penyimpanan lokal persisten menggunakan library **Hive**.
+/// Data disimpan ke dalam 3 Box (tabel key-value NoSQL lokal di perangkat):
+/// 1. `favorites_box`      : menyimpan daftar kota favorit pengguna.
+/// 2. `search_history_box` : menyimpan riwayat lokasi yang pernah dibuka.
+/// 3. `settings_box`       : menyimpan lokasi terakhir agar otomatis tampil kembali
+///                           ketika aplikasi ditutup lalu dibuka ulang.
+/// ============================================================================
 class StorageService {
   static const String favoritesBoxName = 'favorites_box';
   static const String historyBoxName = 'search_history_box';
@@ -11,7 +21,7 @@ class StorageService {
   late Box<Map> _historyBox;
   late Box<dynamic> _settingsBox;
 
-  /// Inisialisasi Hive dan buka seluruh Box yang diperlukan
+  /// Inisialisasi direktori penyimpanan Hive di Flutter dan membuka ketiga Box
   Future<void> init() async {
     await Hive.initFlutter();
     _favoritesBox = await Hive.openBox<Map>(favoritesBoxName);
@@ -19,9 +29,9 @@ class StorageService {
     _settingsBox = await Hive.openBox<dynamic>(settingsBoxName);
   }
 
-  // ==================== LOKASI FAVORIT ====================
+  // ==================== 1. MANAJEMEN LOKASI FAVORIT ====================
 
-  /// Mendapatkan semua lokasi favorit yang tersimpan
+  /// Mengambil seluruh daftar lokasi favorit yang tersimpan di Hive
   List<LocationModel> getFavorites() {
     final List<LocationModel> favorites = [];
     for (final key in _favoritesBox.keys) {
@@ -30,49 +40,49 @@ class StorageService {
         favorites.add(LocationModel.fromMap(data).copyWith(isFavorite: true));
       }
     }
-    // Urutkan favorit berdasarkan nama
+    // Mengurutkan daftar favorit sesuai abjad nama kota (A-Z)
     favorites.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
     return favorites;
   }
 
-  /// Cek apakah suatu ID lokasi ada di daftar favorit
+  /// Mengecek apakah suatu ID kota sudah tersimpan di daftar favorit
   bool isFavorite(int locationId) {
     return _favoritesBox.containsKey(locationId.toString());
   }
 
-  /// Toggle status favorit (tambah jika belum ada, hapus jika sudah ada)
+  /// Menambah kota ke favorit jika belum ada, atau menghapusnya jika sudah ada
   Future<bool> toggleFavorite(LocationModel location) async {
     final key = location.id.toString();
     if (_favoritesBox.containsKey(key)) {
       await _favoritesBox.delete(key);
-      return false; // Sekarang bukan favorit
+      return false; // Status terbaru: bukan favorit
     } else {
       final favLocation = location.copyWith(isFavorite: true);
       await _favoritesBox.put(key, favLocation.toMap());
-      return true; // Sekarang favorit
+      return true; // Status terbaru: menjadi favorit
     }
   }
 
-  /// Menghapus lokasi dari favorit
+  /// Menghapus satu lokasi dari Box favorit berdasarkan ID
   Future<void> removeFavorite(int locationId) async {
     await _favoritesBox.delete(locationId.toString());
   }
 
-  // ==================== RIWAYAT PENCARIAN ====================
+  // ==================== 2. MANAJEMEN RIWAYAT PENCARIAN ====================
 
-  /// Mengambil daftar riwayat pencarian (maksimal 15 terakhir)
+  /// Mengambil seluruh riwayat lokasi yang pernah dilihat (diurutkan dari terbaru)
   List<LocationModel> getSearchHistory() {
     final List<LocationModel> history = [];
     for (final key in _historyBox.keys) {
       final data = _historyBox.get(key);
       if (data != null) {
         final loc = LocationModel.fromMap(data);
-        // Sinkronkan status favorit saat ini
+        // Menyelaraskan tanda ikon hati dengan status favorit terkini
         final isFav = isFavorite(loc.id);
         history.add(loc.copyWith(isFavorite: isFav));
       }
     }
-    // Urutkan dari yang paling baru dilihat
+    // Urutkan berdasarkan waktu kunjungan terbaru di posisi paling atas
     history.sort((a, b) {
       final aTime = a.lastViewedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
       final bTime = b.lastViewedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
@@ -81,7 +91,7 @@ class StorageService {
     return history;
   }
 
-  /// Menambahkan lokasi ke riwayat pencarian
+  /// Mencatat lokasi yang dipilih pengguna ke dalam riwayat pencarian Hive
   Future<void> addToSearchHistory(LocationModel location) async {
     final key = location.id.toString();
     final updated = location.copyWith(
@@ -90,7 +100,7 @@ class StorageService {
     );
     await _historyBox.put(key, updated.toMap());
 
-    // Batasi riwayat maksimal 20 item agar hemat memori
+    // Membatasi maksimal 20 riwayat terakhir agar penyimpanan tetap ringan
     if (_historyBox.length > 20) {
       final all = getSearchHistory();
       if (all.length > 20) {
@@ -101,24 +111,24 @@ class StorageService {
     }
   }
 
-  /// Menghapus satu item dari riwayat
+  /// Menghapus satu item tertentu dari riwayat pencarian
   Future<void> removeFromHistory(int locationId) async {
     await _historyBox.delete(locationId.toString());
   }
 
-  /// Membersihkan seluruh riwayat pencarian
+  /// Menghapus seluruh isi riwayat pencarian sekaligus
   Future<void> clearSearchHistory() async {
     await _historyBox.clear();
   }
 
-  // ==================== LOKASI TERAKHIR DIAKSES ====================
+  // ==================== 3. LOKASI TERAKHIR DIAKSES ====================
 
-  /// Menyimpan lokasi terakhir yang sedang dibuka pengguna
+  /// Menyimpan kota yang sedang aktif agar tidak hilang saat aplikasi ditutup
   Future<void> saveLastSelectedLocation(LocationModel location) async {
     await _settingsBox.put(lastLocationKey, location.toMap());
   }
 
-  /// Memuat lokasi terakhir yang disimpan saat aplikasi dibuka kembali
+  /// Membaca kembali kota terakhir saat aplikasi baru dibuka
   LocationModel? getLastSelectedLocation() {
     final data = _settingsBox.get(lastLocationKey);
     if (data != null && data is Map) {

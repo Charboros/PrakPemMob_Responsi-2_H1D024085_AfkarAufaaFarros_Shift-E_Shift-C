@@ -1,11 +1,17 @@
+/// ============================================================================
+/// LAYER MODEL (MVVM) - CurrentWeatherModel
+/// ----------------------------------------------------------------------------
+/// Menyimpan data cuaca terkini hasil parsing objek `current` dari JSON
+/// Open-Meteo Weather Forecast API sesuai field wajib pada soal responsi.
+/// ============================================================================
 class CurrentWeatherModel {
   final DateTime time;
-  final double temperature; // current.temperature_2m (°C)
-  final int relativeHumidity; // current.relative_humidity_2m (%)
-  final double apparentTemperature; // current.apparent_temperature (°C)
-  final double precipitation; // current.precipitation (mm)
-  final int weatherCode; // current.weather_code
-  final double windSpeed; // current.wind_speed_10m (km/h)
+  final double temperature; // Field API: current.temperature_2m (°C)
+  final int relativeHumidity; // Field API: current.relative_humidity_2m (%)
+  final double apparentTemperature; // Field API: current.apparent_temperature (°C)
+  final double precipitation; // Field API: current.precipitation (mm)
+  final int weatherCode; // Field API: current.weather_code (kode kondisi cuaca WMO)
+  final double windSpeed; // Field API: current.wind_speed_10m (km/h)
 
   CurrentWeatherModel({
     required this.time,
@@ -17,6 +23,7 @@ class CurrentWeatherModel {
     required this.windSpeed,
   });
 
+  /// Mengubah map JSON `current` dari respons API menjadi objek Dart yang type-safe
   factory CurrentWeatherModel.fromJson(Map<String, dynamic> json) {
     return CurrentWeatherModel(
       time: DateTime.tryParse(json['time'] as String? ?? '') ?? DateTime.now(),

@@ -7,6 +7,17 @@ import '../viewmodels/weather_viewmodel.dart';
 import '../widgets/daily_forecast_tile.dart';
 import '../widgets/weather_detail_card.dart';
 
+/// ============================================================================
+/// LAYER VIEW (MVVM) - HomeScreen (Layar Utama Cuaca)
+/// ----------------------------------------------------------------------------
+/// Menggunakan `StatefulWidget` karena membutuhkan method lifecycle `initState()`
+/// untuk memicu pemuatan lokasi & data cuaca awal satu kali saat layar dibuka.
+/// Menampilkan:
+/// 1. Nama kota yang sedang dipilih + tombol Favorit & tombol Cari Kota
+/// 2. Suhu saat ini & kondisi cuaca terkini (ikon + gradien dinamis)
+/// 3. Informasi tambahan: suhu dirasakan, kelembapan, kecepatan angin, curah & peluang hujan
+/// 4. Perkiraan cuaca harian 7 hari ke depan
+/// ============================================================================
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -18,12 +29,13 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    // Muat data saat screen pertama kali dibuka
+    // Memanggil inisialisasi ViewModel setelah frame pertama selesai digambar
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<WeatherViewModel>().init();
     });
   }
 
+  /// Berpindah ke SearchScreen dan menangkap kota yang dipilih oleh pengguna
   Future<void> _navigateToSearch() async {
     final selectedLocation = await Navigator.pushNamed(
       context,
@@ -33,25 +45,30 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     final weatherVM = context.read<WeatherViewModel>();
 
+    // Jika pengguna memilih sebuah kota, muat cuaca kota tersebut di HomeScreen
     if (selectedLocation is LocationModel) {
       await weatherVM.selectLocation(selectedLocation);
     } else {
-      // Sinkronkan status favorit jika diubah dari halaman pencarian
+      // Jika pengguna hanya menekan tombol kembali, sinkronkan status favorit terbaru
       weatherVM.syncFavoriteStatus();
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Mendengarkan perubahan state pada WeatherViewModel secara reaktif
     final weatherVM = context.watch<WeatherViewModel>();
     final location = weatherVM.currentLocation;
     final weather = weatherVM.weatherData?.current;
+
+    // Menentukan deskripsi, ikon, dan gradien latar berdasarkan kode cuaca WMO terkini
     final condition = weather != null
         ? WeatherConditionHelper.getCondition(weather.weatherCode)
         : WeatherConditionHelper.getCondition(-1);
 
     return Scaffold(
       body: Container(
+        // Latar belakang gradien yang berubah dinamis mengikuti kondisi cuaca
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
@@ -61,14 +78,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         child: SafeArea(
           child: Center(
+            // ConstrainedBox menjaga tampilan tetap rapi & responsif di layar lebar/tablet
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 800),
               child: Column(
                 children: [
-                  // Custom App Bar
+                  // Bagian atas: Nama kota, tombol favorit, dan tombol pencarian
                   _buildAppBar(context, weatherVM, location),
 
-                  // Content Body
+                  // Bagian isi utama (menyesuaikan state loading / error / empty / loaded)
                   Expanded(
                     child: _buildBody(context, weatherVM, condition),
                   ),
@@ -81,6 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Membangun bar bagian atas berisi informasi lokasi aktif & aksi navigasi
   Widget _buildAppBar(
     BuildContext context,
     WeatherViewModel weatherVM,
@@ -98,6 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
             size: 26,
           ),
           const SizedBox(width: 8),
+          // Nama kota dan keterangan provinsi/negara
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -123,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // Tombol Favorit
+          // Tombol simpan / hapus kota aktif dari daftar favorit Hive
           if (location != null)
             IconButton(
               icon: Icon(
@@ -153,7 +173,7 @@ class _HomeScreenState extends State<HomeScreen> {
               },
             ),
 
-          // Tombol Pencarian
+          // Tombol menuju halaman pencarian kota (SearchScreen)
           IconButton(
             icon: const Icon(
               Icons.search_rounded,
@@ -168,6 +188,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Membangun konten utama berdasarkan status state pada WeatherViewModel
   Widget _buildBody(
     BuildContext context,
     WeatherViewModel weatherVM,
@@ -175,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
   ) {
     final textTheme = Theme.of(context).textTheme;
 
-    // 1. Kondisi Loading
+    // 1. Penanganan Kondisi LOADING (saat menunggu respons dari API)
     if (weatherVM.isLoading && weatherVM.weatherData == null) {
       return Center(
         child: Column(
@@ -192,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // 2. Kondisi Error
+    // 2. Penanganan Kondisi ERROR (saat internet mati / timeout / gagal request)
     if (weatherVM.state == WeatherViewState.error && weatherVM.weatherData == null) {
       return Center(
         child: Padding(
@@ -232,7 +253,7 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    // 3. Kondisi Data Kosong
+    // 3. Penanganan Kondisi DATA KOSONG (empty state)
     if (weatherVM.state == WeatherViewState.empty || weatherVM.weatherData == null) {
       return Center(
         child: Padding(
@@ -272,12 +293,14 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
+    // 4. Kondisi LOADED: Data cuaca berhasil diterima dari API
     final weather = weatherVM.weatherData!.current;
     final dailyList = weatherVM.weatherData!.daily;
     final todayRainProb = dailyList.isNotEmpty
         ? dailyList.first.precipitationProbabilityMax
         : null;
 
+    // RefreshIndicator memungkinkan pengguna menarik layar ke bawah untuk refresh data API
     return RefreshIndicator(
       color: Theme.of(context).colorScheme.primary,
       backgroundColor: Colors.white,
@@ -286,7 +309,7 @@ class _HomeScreenState extends State<HomeScreen> {
         padding: const EdgeInsets.all(16.0),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
-          // Banner peringatan jika refresh gagal namun masih ada data sebelumnya
+          // Peringatan kecil jika gagal refresh saat data sebelumnya masih tertampil
           if (weatherVM.state == WeatherViewState.error &&
               weatherVM.errorMessage != null)
             Container(
@@ -310,12 +333,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-          // Header Hero Cuaca Utama
+          // Tampilan utama: Ikon cuaca, suhu saat ini (°C), & deskripsi kondisi cuaca
           _buildWeatherHero(context, weather.temperature, condition),
 
           const SizedBox(height: 16),
 
-          // Advice / Tips Box
+          // Kotak saran aktivitas sesuai kondisi cuaca saat ini
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
@@ -348,7 +371,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(height: 20),
 
-          // Grid Responsif Info Tambahan Cuaca
+          // Grid Responsif untuk menampilkan 4 informasi cuaca tambahan
           Text(
             'Informasi Cuaca',
             style: textTheme.titleLarge?.copyWith(color: Colors.white),
@@ -356,6 +379,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
+              // Responsif: 2 kolom pada layar ponsel, 4 kolom pada layar lebar/lanskap
               final crossAxisCount = constraints.maxWidth >= 560 ? 4 : 2;
               return GridView(
                 shrinkWrap: true,
@@ -400,7 +424,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
           const SizedBox(height: 24),
 
-          // Ramalan Cuaca Harian
+          // Bagian daftar perkiraan cuaca beberapa hari ke depan (Daily Forecast)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -433,6 +457,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             )
           else
+            // Merender setiap hari ramalan cuaca menggunakan widget DailyForecastTile
             ...dailyList.asMap().entries.map((entry) {
               return DailyForecastTile(
                 forecast: entry.value,
@@ -446,6 +471,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Menampilkan ikon cuaca besar, suhu saat ini, dan teks kondisi cuaca terkini
   Widget _buildWeatherHero(
     BuildContext context,
     double temperature,

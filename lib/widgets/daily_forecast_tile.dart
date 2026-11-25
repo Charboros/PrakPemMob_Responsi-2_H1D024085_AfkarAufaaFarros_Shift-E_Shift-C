@@ -3,6 +3,13 @@ import 'package:intl/intl.dart';
 import '../models/daily_forecast_model.dart';
 import '../utils/weather_condition_helper.dart';
 
+/// ============================================================================
+/// WIDGET REUSABLE - DailyForecastTile
+/// ----------------------------------------------------------------------------
+/// Menggunakan `StatelessWidget` untuk menampilkan satu baris perkiraan cuaca
+/// harian: nama hari & tanggal (Bahasa Indonesia), ikon & kondisi cuaca,
+/// persentase peluang hujan maksimum, serta suhu minimum & maksimum harian.
+/// ============================================================================
 class DailyForecastTile extends StatelessWidget {
   final DailyForecastModel forecast;
   final bool isToday;
@@ -17,6 +24,8 @@ class DailyForecastTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final condition = WeatherConditionHelper.getCondition(forecast.weatherCode);
     final textTheme = Theme.of(context).textTheme;
+
+    // Memformat tanggal ke Bahasa Indonesia menggunakan paket `intl`
     final dayFormat = DateFormat('EEEE', 'id_ID');
     final dateFormat = DateFormat('d MMM', 'id_ID');
 
@@ -50,7 +59,7 @@ class DailyForecastTile extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Hari dan Tanggal
+          // Kolom 1: Nama Hari dan Tanggal
           Expanded(
             flex: 3,
             child: Column(
@@ -63,7 +72,8 @@ class DailyForecastTile extends StatelessWidget {
                   style: textTheme.bodyLarge?.copyWith(
                     fontSize: 14,
                     fontWeight: isToday ? FontWeight.bold : FontWeight.w600,
-                    color: isToday ? Theme.of(context).colorScheme.primary : null,
+                    color:
+                        isToday ? Theme.of(context).colorScheme.primary : null,
                   ),
                 ),
                 Text(
@@ -76,7 +86,7 @@ class DailyForecastTile extends StatelessWidget {
             ),
           ),
 
-          // Icon dan Kondisi Cuaca
+          // Kolom 2: Ikon dan Deskripsi Kondisi Cuaca Harian
           Expanded(
             flex: 4,
             child: Row(
@@ -99,7 +109,7 @@ class DailyForecastTile extends StatelessWidget {
             ),
           ),
 
-          // Peluang Hujan Maksimum Harian
+          // Kolom 3: Peluang Hujan Maksimum (`daily.precipitation_probability_max`)
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -121,7 +131,7 @@ class DailyForecastTile extends StatelessWidget {
           ),
           const SizedBox(width: 10),
 
-          // Suhu Min - Max
+          // Kolom 4: Suhu Minimum / Maksimum Harian (`temperature_2m_min` / `max`)
           Text(
             '${forecast.temperatureMin.toStringAsFixed(0)}° / ${forecast.temperatureMax.toStringAsFixed(0)}°',
             style: textTheme.bodyLarge?.copyWith(

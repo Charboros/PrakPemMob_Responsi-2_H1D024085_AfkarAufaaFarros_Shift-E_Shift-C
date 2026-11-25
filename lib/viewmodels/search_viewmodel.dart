@@ -4,8 +4,17 @@ import '../models/location_model.dart';
 import '../services/storage_service.dart';
 import '../services/weather_api_service.dart';
 
+/// Status state pada halaman pencarian lokasi
 enum SearchViewState { idle, searching, results, empty, error }
 
+/// ============================================================================
+/// LAYER VIEWMODEL (MVVM) - SearchViewModel
+/// ----------------------------------------------------------------------------
+/// Mengelola seluruh logika bisnis pada `SearchScreen`:
+/// - Pencarian kota ke Geocoding API dengan teknik Debounce (jeda 500ms)
+/// - Pembacaan & pembaruan daftar Lokasi Favorit dari Hive
+/// - Pembacaan & penghapusan daftar Riwayat Pencarian dari Hive
+/// ============================================================================
 class SearchViewModel extends ChangeNotifier {
   final WeatherApiService apiService;
   final StorageService storageService;
@@ -17,6 +26,7 @@ class SearchViewModel extends ChangeNotifier {
   String? _errorMessage;
   String _currentQuery = '';
 
+  // Timer untuk mekanisme debounce agar tidak mengirim request di setiap ketukan huruf
   Timer? _debounceTimer;
 
   SearchViewModel({
@@ -24,7 +34,7 @@ class SearchViewModel extends ChangeNotifier {
     required this.storageService,
   });
 
-  // Getters
+  // Getters untuk dibaca oleh SearchScreen
   SearchViewState get state => _state;
   List<LocationModel> get searchResults => _searchResults;
   List<LocationModel> get favorites => _favorites;
@@ -33,19 +43,21 @@ class SearchViewModel extends ChangeNotifier {
   String get currentQuery => _currentQuery;
   bool get isSearching => _state == SearchViewState.searching;
 
-  /// Memuat daftar favorit dan riwayat pencarian dari Hive
+  /// Memuat ulang daftar favorit dan riwayat pencarian yang tersimpan di Hive
   void loadFavoritesAndHistory() {
     _favorites = storageService.getFavorites();
     _searchHistory = storageService.getSearchHistory();
     notifyListeners();
   }
 
-  /// Pencarian dengan debounce otomatis saat pengguna mengetik
+  /// Dipanggil setiap kali teks di kolom pencarian berubah.
+  /// Menggunakan debounce 500 milidetik: API baru dipanggil setelah pengguna berhenti mengetik.
   void onQueryChanged(String query) {
     _currentQuery = query;
     _debounceTimer?.cancel();
 
     final trimmed = query.trim();
+    // Jika kolom input dikosongkan, kembali tampilkan tab Favorit & Riwayat
     if (trimmed.isEmpty) {
       _state = SearchViewState.idle;
       _searchResults = [];
@@ -60,7 +72,7 @@ class SearchViewModel extends ChangeNotifier {
     });
   }
 
-  /// Eksekusi pencarian ke Geocoding API
+  /// Menjalankan HTTP GET ke Open-Meteo Geocoding API sesuai kata kunci nama kota
   Future<void> executeSearch(String query) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) return;
@@ -73,12 +85,13 @@ class SearchViewModel extends ChangeNotifier {
     try {
       final results = await apiService.searchLocations(trimmed);
 
-      // Sinkronkan status favorit dari Hive
+      // Tandai kota mana saja di hasil pencarian yang sudah masuk daftar favorit Hive
       final syncedResults = results.map((loc) {
         return loc.copyWith(isFavorite: storageService.isFavorite(loc.id));
       }).toList();
 
       _searchResults = syncedResults;
+      // Bedakan state ketika hasil ditemukan vs hasil kosong (kota tidak ada)
       if (syncedResults.isEmpty) {
         _state = SearchViewState.empty;
       } else {
@@ -95,14 +108,14 @@ class SearchViewModel extends ChangeNotifier {
     }
   }
 
-  /// Toggle status favorit pada lokasi tertentu
+  /// Menyimpan atau menghapus lokasi dari daftar favorit Hive langsung dari daftar
   Future<void> toggleFavorite(LocationModel location) async {
     await storageService.toggleFavorite(location);
 
-    // Refresh daftar favorit dan riwayat
+    // Perbarui isi tab Favorit & Riwayat
     loadFavoritesAndHistory();
 
-    // Perbarui juga flag di searchResults jika sedang ada hasil pencarian
+    // Perbarui juga ikon hati pada daftar hasil pencarian yang sedang tampil
     if (_searchResults.isNotEmpty) {
       _searchResults = _searchResults.map((item) {
         if (item.id == location.id) {
@@ -114,19 +127,19 @@ class SearchViewModel extends ChangeNotifier {
     }
   }
 
-  /// Hapus satu item dari riwayat pencarian
+  /// Menghapus satu item lokasi dari riwayat pencarian
   Future<void> removeFromHistory(int locationId) async {
     await storageService.removeFromHistory(locationId);
     loadFavoritesAndHistory();
   }
 
-  /// Bersihkan semua riwayat pencarian
+  /// Menghapus seluruh riwayat pencarian sekaligus
   Future<void> clearHistory() async {
     await storageService.clearSearchHistory();
     loadFavoritesAndHistory();
   }
 
-  /// Bersihkan input pencarian
+  /// Mereset teks & hasil pencarian ke kondisi awal (idle)
   void clearSearch() {
     _debounceTimer?.cancel();
     _currentQuery = '';

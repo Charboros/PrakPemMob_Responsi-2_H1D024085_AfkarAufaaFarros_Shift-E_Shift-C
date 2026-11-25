@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import '../models/location_model.dart';
 
+/// ============================================================================
+/// WIDGET REUSABLE - LocationListTile
+/// ----------------------------------------------------------------------------
+/// Menggunakan `StatelessWidget` untuk menampilkan satu item kota pada daftar
+/// hasil pencarian, tab lokasi favorit, maupun tab riwayat pencarian.
+/// Dilengkapi callback pemilihan lokasi, toggle favorit, & hapus riwayat.
+/// ============================================================================
 class LocationListTile extends StatelessWidget {
   final LocationModel location;
   final VoidCallback onTap;
@@ -58,14 +65,22 @@ class LocationListTile extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            // Tombol hati untuk menyimpan/menghapus lokasi dari daftar favorit Hive
             IconButton(
               icon: Icon(
-                location.isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
-                color: location.isFavorite ? Colors.redAccent : Colors.grey.shade500,
+                location.isFavorite
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                color: location.isFavorite
+                    ? Colors.redAccent
+                    : Colors.grey.shade500,
               ),
-              tooltip: location.isFavorite ? 'Hapus dari Favorit' : 'Simpan ke Favorit',
+              tooltip: location.isFavorite
+                  ? 'Hapus dari Favorit'
+                  : 'Simpan ke Favorit',
               onPressed: onFavoriteTap,
             ),
+            // Tombol silang (khusus di tab Riwayat) untuk menghapus satu item riwayat
             if (showDelete && onDeleteTap != null)
               IconButton(
                 icon: Icon(

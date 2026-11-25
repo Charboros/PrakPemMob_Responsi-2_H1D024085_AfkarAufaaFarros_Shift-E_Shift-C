@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+/// Menyimpan paket informasi visual hasil terjemahan kode cuaca WMO:
+/// deskripsi teks Bahasa Indonesia, ikon Material, warna gradien latar, & saran cuaca.
 class WeatherConditionInfo {
   final String description;
   final IconData icon;
@@ -14,8 +16,14 @@ class WeatherConditionInfo {
   });
 }
 
+/// ============================================================================
+/// HELPER KODE CUACA WMO (WeatherConditionHelper)
+/// ----------------------------------------------------------------------------
+/// API Open-Meteo mengirimkan field `weather_code` berupa angka standar WMO (0-99).
+/// Class helper ini menerjemahkan angka tersebut menjadi deskripsi Bahasa Indonesia,
+/// ikon cuaca yang relevan, dan tema gradien warna dinamis pada layar utama.
+/// ============================================================================
 class WeatherConditionHelper {
-  /// Mendapatkan info visual dan deskripsi cuaca berdasarkan WMO Weather Code
   static WeatherConditionInfo getCondition(int code) {
     switch (code) {
       case 0:

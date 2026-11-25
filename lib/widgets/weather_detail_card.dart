@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
 
+/// ============================================================================
+/// WIDGET REUSABLE - WeatherDetailCard
+/// ----------------------------------------------------------------------------
+/// Menggunakan `StatelessWidget` karena bersifat murni presentasi (menerima
+/// ikon, judul, nilai, & subjudul dari parent widget tanpa state internal).
+/// Dipakai untuk menampilkan kartu Kelembapan, Angin, Suhu Dirasakan, & Hujan.
+/// ============================================================================
 class WeatherDetailCard extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -22,6 +29,7 @@ class WeatherDetailCard extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      // Efek kartu semi-transparan (glassmorphism) di atas latar gradien cuaca
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(16),
