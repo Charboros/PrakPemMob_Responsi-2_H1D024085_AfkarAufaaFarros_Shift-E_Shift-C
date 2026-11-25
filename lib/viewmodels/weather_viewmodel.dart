@@ -7,8 +7,8 @@ import '../services/weather_api_service.dart';
 enum WeatherViewState { initial, loading, loaded, error }
 
 class WeatherViewModel extends ChangeNotifier {
-  final WeatherApiService _apiService;
-  final StorageService _storageService;
+  final WeatherApiService apiService;
+  final StorageService storageService;
 
   WeatherViewState _state = WeatherViewState.initial;
   WeatherResponseModel? _weatherData;
@@ -17,10 +17,9 @@ class WeatherViewModel extends ChangeNotifier {
   bool _isFavorite = false;
 
   WeatherViewModel({
-    required WeatherApiService apiService,
-    required StorageService storageService,
-  })  : _apiService = apiService,
-        _storageService = storageService;
+    required this.apiService,
+    required this.storageService,
+  });
 
   // Getters
   WeatherViewState get state => _state;
@@ -44,7 +43,7 @@ class WeatherViewModel extends ChangeNotifier {
 
   /// Inisialisasi awal: muat lokasi terakhir tersimpan di Hive, atau gunakan default
   Future<void> init() async {
-    final savedLocation = _storageService.getLastSelectedLocation();
+    final savedLocation = storageService.getLastSelectedLocation();
     final locationToLoad = savedLocation ?? defaultLocation;
     await selectLocation(locationToLoad, isInitial: true);
   }
@@ -52,11 +51,11 @@ class WeatherViewModel extends ChangeNotifier {
   /// Memilih lokasi baru dan langsung mengambil data cuacanya
   Future<void> selectLocation(LocationModel location, {bool isInitial = false}) async {
     _currentLocation = location;
-    _isFavorite = _storageService.isFavorite(location.id);
+    _isFavorite = storageService.isFavorite(location.id);
 
     // Simpan ke riwayat dan simpan sebagai lokasi aktif terakhir di Hive
-    await _storageService.addToSearchHistory(location);
-    await _storageService.saveLastSelectedLocation(location);
+    await storageService.addToSearchHistory(location);
+    await storageService.saveLastSelectedLocation(location);
 
     notifyListeners();
     await fetchWeather();
@@ -71,7 +70,7 @@ class WeatherViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final data = await _apiService.getForecast(
+      final data = await apiService.getForecast(
         latitude: _currentLocation!.latitude,
         longitude: _currentLocation!.longitude,
       );
@@ -88,7 +87,7 @@ class WeatherViewModel extends ChangeNotifier {
     } finally {
       // Perbarui kembali status favorit terbaru
       if (_currentLocation != null) {
-        _isFavorite = _storageService.isFavorite(_currentLocation!.id);
+        _isFavorite = storageService.isFavorite(_currentLocation!.id);
       }
       notifyListeners();
     }
@@ -98,7 +97,7 @@ class WeatherViewModel extends ChangeNotifier {
   Future<void> toggleFavorite() async {
     if (_currentLocation == null) return;
 
-    final newStatus = await _storageService.toggleFavorite(_currentLocation!);
+    final newStatus = await storageService.toggleFavorite(_currentLocation!);
     _isFavorite = newStatus;
     _currentLocation = _currentLocation!.copyWith(isFavorite: newStatus);
     notifyListeners();

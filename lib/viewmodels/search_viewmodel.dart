@@ -7,8 +7,8 @@ import '../services/weather_api_service.dart';
 enum SearchViewState { idle, searching, results, empty, error }
 
 class SearchViewModel extends ChangeNotifier {
-  final WeatherApiService _apiService;
-  final StorageService _storageService;
+  final WeatherApiService apiService;
+  final StorageService storageService;
 
   SearchViewState _state = SearchViewState.idle;
   List<LocationModel> _searchResults = [];
@@ -20,10 +20,9 @@ class SearchViewModel extends ChangeNotifier {
   Timer? _debounceTimer;
 
   SearchViewModel({
-    required WeatherApiService apiService,
-    required StorageService storageService,
-  })  : _apiService = apiService,
-        _storageService = storageService;
+    required this.apiService,
+    required this.storageService,
+  });
 
   // Getters
   SearchViewState get state => _state;
@@ -36,8 +35,8 @@ class SearchViewModel extends ChangeNotifier {
 
   /// Memuat daftar favorit dan riwayat pencarian dari Hive
   void loadFavoritesAndHistory() {
-    _favorites = _storageService.getFavorites();
-    _searchHistory = _storageService.getSearchHistory();
+    _favorites = storageService.getFavorites();
+    _searchHistory = storageService.getSearchHistory();
     notifyListeners();
   }
 
@@ -72,11 +71,11 @@ class SearchViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final results = await _apiService.searchLocations(trimmed);
+      final results = await apiService.searchLocations(trimmed);
 
       // Sinkronkan status favorit dari Hive
       final syncedResults = results.map((loc) {
-        return loc.copyWith(isFavorite: _storageService.isFavorite(loc.id));
+        return loc.copyWith(isFavorite: storageService.isFavorite(loc.id));
       }).toList();
 
       _searchResults = syncedResults;
@@ -98,7 +97,7 @@ class SearchViewModel extends ChangeNotifier {
 
   /// Toggle status favorit pada lokasi tertentu
   Future<void> toggleFavorite(LocationModel location) async {
-    await _storageService.toggleFavorite(location);
+    await storageService.toggleFavorite(location);
 
     // Refresh daftar favorit dan riwayat
     loadFavoritesAndHistory();
@@ -107,7 +106,7 @@ class SearchViewModel extends ChangeNotifier {
     if (_searchResults.isNotEmpty) {
       _searchResults = _searchResults.map((item) {
         if (item.id == location.id) {
-          return item.copyWith(isFavorite: _storageService.isFavorite(item.id));
+          return item.copyWith(isFavorite: storageService.isFavorite(item.id));
         }
         return item;
       }).toList();
@@ -117,13 +116,13 @@ class SearchViewModel extends ChangeNotifier {
 
   /// Hapus satu item dari riwayat pencarian
   Future<void> removeFromHistory(int locationId) async {
-    await _storageService.removeFromHistory(locationId);
+    await storageService.removeFromHistory(locationId);
     loadFavoritesAndHistory();
   }
 
   /// Bersihkan semua riwayat pencarian
   Future<void> clearHistory() async {
-    await _storageService.clearSearchHistory();
+    await storageService.clearSearchHistory();
     loadFavoritesAndHistory();
   }
 
